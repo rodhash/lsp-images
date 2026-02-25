@@ -34,27 +34,29 @@ jobs:
         run: |
           REGISTRY="ghcr.io/${{ github.repository_owner }}"
 
+          # 1. Gather targets, ignoring files starting with _ and specifically ignoring 'fetcher'
           if [ "${{ github.event.inputs.target }}" == "all" ]; then
-            NIX_TARGETS=$(ls nix/build_image_*.nix | sed 's|nix/build_image_||;s|.nix||')
-            DOCKER_TARGETS=$(ls podman/Dockerfile.* | sed 's|podman/Dockerfile.||')
-            TARGETS="$NIX_TARGETS $DOCKER_TARGETS"
+            NIX_TARGETS=$(ls nix/build_image_[!_]*.nix 2>/dev/null | sed 's|nix/build_image_||;s|.nix||')
+            DOCKER_TARGETS=$(ls podman/Dockerfile.[!_]* 2>/dev/null | sed 's|podman/Dockerfile.||')
+
+            # Combine and filter out 'fetcher'
+            TARGETS=$(echo "$NIX_TARGETS $DOCKER_TARGETS" | tr ' ' '\n' | grep -vE '^fetcher$' | xargs)
           else
             TARGETS="${{ github.event.inputs.target }}"
           fi
 
+          # 2. Loop through and build
           for T in $TARGETS; do
             echo "--- Processing: $T ---"
 
             if [ -f "nix/build_image_${T}.nix" ]; then
-              # Build and get the path, allowing unfree packages
+              # Nix Build Path
               RESULT_PATH=$(nix-build nix/build_image_${T}.nix --no-out-link)
-
               LOAD_OUTPUT=$(podman load -i $RESULT_PATH)
               echo "$LOAD_OUTPUT"
 
               # Grab the hex ID from the load output
               IMAGE_ID=$(echo "$LOAD_OUTPUT" | grep -oE '[a-f0-9]{64}' | head -n 1)
-
               if [ -z "$IMAGE_ID" ]; then
                 IMAGE_ID=$(podman images --sort created --format "{{.ID}}" | head -n 1)
               fi
@@ -63,8 +65,7 @@ jobs:
               podman push "${REGISTRY}/lsp-${T}:latest"
 
             elif [ -f "podman/Dockerfile.${T}" ]; then
-              # Ensure fetcher is built for standard Podman builds
-              podman build -t lsp-fetcher -f podman/_Dockerfile.fetcher podman/
+              # Podman Build Path
               podman build -t "${REGISTRY}/lsp-${T}:latest" -f podman/Dockerfile.${T} podman/
               podman push "${REGISTRY}/lsp-${T}:latest"
             fi
