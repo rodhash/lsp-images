@@ -1,9 +1,19 @@
 
 # 🏭 LSP Factory
 
-![Build Status](https://github.com/rodhash/LSP-Factory/actions/workflows/build.yml/badge.svg)
+
+[![Build Status](https://img.shields.io/github/actions/workflow/status/rodhash/lsp-images/build-lsps.yml?branch=main&logo=github&label=Factory%20Build)](https://github.com/rodhash/lsp-images/actions/workflows/build-lsps.yml)
+[![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+[![Dependency Tracking](https://img.shields.io/badge/maintained%20by-renovate-blue?logo=renovatebot)](https://github.com/rodhash/lsp-images/issues/3)
+
+
 
 An automated pipeline for building, testing, and distributing lightweight, containerized Language Servers (LSPs). This project uses **Nix** and **Podman** to ensure every LSP is minimal, reproducible, and ready for use in development environments like Neovim, VS Code, or Helix.
+
+> [!WARNING]
+> **Work In Progress (WIP)**: This is my first public repository and a learning project. Things may change frequently, and while I use these images daily, you should use them at your own risk. Expect breaking changes as I refine the factory!
+
+
 
 ## 🚀 Quick Start
 
@@ -18,12 +28,47 @@ podman pull ghcr.io/rodhash/lsp-rust-analyzer:latest
 ```
 
 
-### Supported LSPs
 
-The factory currently produces images for:
+## 📦 Supported LSPs
 
-* **Nix-based builds:** `gopls`, `rust-analyzer`, `pyright`, `nil`, etc.
-* **Alpine-based builds:** Custom Dockerfile-based LSPs found in `/podman`.
+The factory currently maintains **22** specialized images.
+
+### ❄️ Nix-Based LSPs (High Reproducibility)
+
+| LSP Name | Pull Target |
+| --- | --- |
+| **ansible** | `lsp-ansible` |
+| **clangd** | `lsp-clangd` |
+| **emmet** | `lsp-emmet` |
+| **htmx** | `lsp-htmx` |
+| **jqls** | `lsp-jqls` |
+| **nil** | `lsp-nil` |
+| **pyright** | `lsp-pyright` |
+| **terraform** | `lsp-terraform` |
+
+
+
+### 🐋 Podman/Alpine-Based LSPs (Ultralight)
+
+| LSP Name | Pull Target |
+| --- | --- |
+| **clangd** | `lsp-clangd` |
+| **dockerls** | `lsp-dockerls` |
+| **gopls** | `lsp-gopls` |
+| **jsonls** | `lsp-jsonls` |
+| **luals** | `lsp-luals` |
+| **marksman** | `lsp-marksman` |
+| **rust-analyzer** | `lsp-rust` |
+| **tailwindcss** | `lsp-tailwindcss` |
+| **taplo** | `lsp-taplo` |
+| **typescript-ls** | `lsp-tsls` |
+| **typos** | `lsp-typos` |
+| **yamlls** | `lsp-yamlls` |
+
+
+> [!NOTE]
+> Files starting with `_` (like `_Dockerfile.fetcher`) are used for internal builds and are not published as standalone LSPs.
+
 
 ---
 
@@ -81,4 +126,5 @@ You can manually trigger a build for a specific LSP or all of them at once:
 ## 📜 License
 
 MIT © rodhash
+
 
