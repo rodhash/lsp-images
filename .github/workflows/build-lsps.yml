@@ -1,0 +1,47 @@
+name: LSP Factory Build
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'LSP to build (e.g., gopls, jqls)'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup Nix for the nix/ folder builds
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Build and Push Image
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          REGISTRY="ghcr.io/${{ github.repository_owner }}"
+
+          # Logic to find the right file and build tool
+          if [ -f "nix/build_image_${TARGET}.nix" ]; then
+            echo "Building $TARGET via Nix..."
+            nix-build nix/build_image_${TARGET}.nix -o result
+            podman load -i result
+            # Assuming your nix file defines the name as 'nix-$TARGET'
+            podman tag "nix-${TARGET}:latest" "${REGISTRY}/lsp-${TARGET}:latest"
+
+          elif [ -f "podman/Dockerfile.${TARGET}" ]; then
+            echo "Building $TARGET via Podman..."
+            # Build base fetcher first if it's a podman build
+            podman build -t lsp-fetcher -f podman/_Dockerfile.fetcher podman/
+            podman build -t "${REGISTRY}/lsp-${TARGET}:latest" -f podman/Dockerfile.${TARGET} podman/
+
+          else
+            echo "Error: No build file found for $TARGET"
+            exit 1
+          fi
+
+          # Push to GitHub Container Registry (or your preferred registry)
+          # podman push "${REGISTRY}/lsp-${TARGET}:latest"
+
