@@ -1,0 +1,16 @@
+FROM alpine:3.22
+
+ARG TLS_VERSION=latest
+ARG TS_VERSION=latest
+
+RUN apk add --no-cache \
+    nodejs \
+    npm
+
+RUN npm install -g \
+    typescript-language-server@${TLS_VERSION} \
+    typescript@${TS_VERSION}
+
+WORKDIR /workspace
+
+CMD ["typescript-language-server", "--stdio"]

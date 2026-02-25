@@ -1,0 +1,20 @@
+# Based on alpine 3.22 as seen in the minirootfs layer
+# FROM alpine:3.22
+FROM alpine
+
+# Version argument for the npm package
+ARG VERSION=4.10.0
+
+# Metadata label
+LABEL version=${VERSION}
+
+# Install Node.js and the language server package
+# Note: These versions are pinned to match your inspect output
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    && npm install -g \
+    vscode-langservers-extracted
+
+# The specific binary for JSON
+CMD ["vscode-json-language-server", "--stdio"]

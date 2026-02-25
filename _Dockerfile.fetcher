@@ -1,0 +1,52 @@
+# We use Debian Bullseye or Bookworm Slim as the base for everything
+FROM debian:bookworm-slim
+
+
+# 1. Install system basics + Clangd + Go + Rustup dependencies
+# RUN apt-get update && apt-get install -y \
+#     g++ \
+#     curl \
+#     unzip \
+#     clangd-18 \
+#     golang-go \
+#     libstdc++6 \
+#     build-essential \
+#     ca-certificates \
+#     libstdc++-12-dev \
+#     libclang-common-14-dev \
+#     lsb-release wget software-properties-common gnupg \
+#     && curl -L https://apt.llvm.org/llvm.sh | bash -s -- 18 \
+#     && apt-get install -y clangd-18 libstdc++-12-dev build-essential \
+#     && rm -rf /var/lib/apt/lists/*
+
+# 1. Install basics first (no clangd-18 yet)
+RUN apt-get update && apt-get install -y \
+    g++ curl unzip golang-go libstdc++6 build-essential \
+    ca-certificates lsb-release wget software-properties-common gnupg
+
+# 2. Run the LLVM script to add version 18 repos
+RUN curl -L https://apt.llvm.org/llvm.sh | bash -s -- 18
+
+# 3. NOW install clangd-18 and clean up
+RUN apt-get update && apt-get install -y clangd-18 && \
+    rm -rf /var/lib/apt/lists/*
+
+# 2. Install Rust (for rust-analyzer and its source)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup component add rust-src rust-analyzer
+
+# 3. Download HTMX LSP (The only one we grab manually)
+# We detect arch to grab the right one
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        curl -L https://github.com/theprimeagen/htmx-lsp/releases/latest/download/htmx-lsp-linux -o /usr/local/bin/htmx-lsp; \
+    else \
+        curl -L https://github.com/theprimeagen/htmx-lsp/releases/latest/download/htmx-lsp-linux-arm64 -o /usr/local/bin/htmx-lsp; \
+    fi && \
+    chmod +x /usr/local/bin/htmx-lsp
+
+WORKDIR /workspace
+
+# Default command if run without args
+CMD ["sh"]

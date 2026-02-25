@@ -1,0 +1,24 @@
+# Stage 1: Build
+FROM rust:alpine AS builder
+
+# Add build-base and specifically libgcc to provide atomic helpers
+RUN apk add --no-cache build-base musl-dev git libgcc
+
+# Set RUSTFLAGS to ensure the linker finds the atomic sync functions
+# This is the "magic" line for Apple Silicon + Alpine
+ENV RUSTFLAGS="-C link-arg=-lgcc"
+
+# Install htmx-lsp
+RUN cargo install htmx-lsp
+
+# Stage 2: Runtime
+FROM alpine:latest
+
+# Basic runtime libs
+RUN apk add --no-cache libgcc libstdc++
+
+COPY --from=builder /usr/local/cargo/bin/htmx-lsp /usr/local/bin/htmx-lsp
+
+WORKDIR /workspace
+
+CMD ["htmx-lsp", "serve"]

@@ -1,0 +1,22 @@
+# Base image derived from the 'History' section showing alpine-minirootfs
+# FROM alpine:3.22
+FROM alpine
+
+# Version argument as seen in the build history
+# ARG VERSION=0.14.25
+ARG VERSION=0.14.29
+
+# Metadata label
+LABEL version=${VERSION}
+
+# Installation of dependencies and the server
+# Note: apk versions are pinned as per the 'RUN' history
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    && npm install -g \
+    tailwindcss \
+    @tailwindcss/language-server@${VERSION}
+
+# Command to run the server
+CMD ["tailwindcss-language-server", "--stdio"]

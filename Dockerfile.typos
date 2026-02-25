@@ -1,0 +1,25 @@
+# Stage 1: Download and Extract
+FROM alpine:latest AS fetcher
+
+# For M1 (AArch64), use this specific binary
+ARG VERSION=0.1.48
+ARG ARCH=aarch64-unknown-linux-musl
+
+RUN apk add --no-cache curl tar
+
+WORKDIR /tmp
+# RUN curl -L https://github.com/tekumara/typos-lsp/releases/download/v${VERSION}/typos-lsp-v${VERSION}-${ARCH}.tar.gz | tar -xz
+RUN curl -L https://github.com/tekumara/typos-lsp/releases/download/v${VERSION}/typos-lsp-v${VERSION}-${ARCH}.tar.gz | tar -xz
+
+# Stage 2: Final Image
+FROM alpine:latest
+
+# typos-lsp might need standard C libraries if using the 'gnu' version,
+# but 'musl' is native to Alpine. We add libc6-compat just in case.
+RUN apk add --no-cache libc6-compat
+
+COPY --from=fetcher /tmp/typos-lsp /usr/local/bin/typos-lsp
+
+# typos-lsp usually runs over stdio by default
+CMD ["typos-lsp"]
+

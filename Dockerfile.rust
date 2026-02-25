@@ -1,0 +1,23 @@
+# FROM rust:alpine
+#
+# RUN apk add --no-cache build-base git bash
+#
+# RUN rustup component add rust-analyzer
+# RUN ln -s $(rustup which rust-analyzer) /usr/local/bin/rust-analyzer
+#
+# WORKDIR /workspace
+#
+# # CMD allows you to override the command easily from the CLI
+# CMD ["rust-analyzer"]
+
+FROM rust:alpine
+
+RUN apk add --no-cache build-base git bash
+
+# You MUST add the 'rust-src' component
+RUN rustup component add rust-analyzer rust-src
+
+RUN ln -s $(rustup which rust-analyzer) /usr/local/bin/rust-analyzer
+
+# WORKDIR /workspace
+CMD ["rust-analyzer"]

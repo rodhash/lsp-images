@@ -1,0 +1,21 @@
+# Stage 1: Download and decompress
+FROM alpine:latest AS fetcher
+
+ARG VERSION=0.10.0
+# Using the aarch64 binary for your M1 Mac
+WORKDIR /tmp
+RUN apk add --no-cache curl
+RUN curl -L "https://github.com/tamasfe/taplo/releases/download/${VERSION}/taplo-linux-aarch64.gz" -o taplo.gz \
+    && gunzip taplo.gz \
+    && chmod +x taplo
+
+# Stage 2: Final Runtime Image
+FROM alpine:latest
+
+# Taplo is a static binary, but libc6-compat ensures it runs on Alpine's musl
+RUN apk add --no-cache libc6-compat
+
+COPY --from=fetcher /tmp/taplo /usr/local/bin/taplo
+
+# Taplo LSP sub-command
+CMD ["taplo", "lsp", "stdio"]

@@ -1,0 +1,19 @@
+# Based on the 'ADD alpine-minirootfs' entry
+# FROM alpine:3.22
+FROM alpine
+
+# From the 'ARG VERSION=3.14.0' entry
+ARG VERSION=3.15.0
+
+# From the 'LABEL version=3.14.0' entry
+LABEL version=${VERSION}
+
+# From the 'RUN' entry - this is the core logic
+# It uses the edge/testing repo because lua-language-server
+# isn't in the standard stable Alpine repos yet.
+RUN apk add --update --no-cache \
+    --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing/ \
+    lua-language-server=${VERSION}-r0
+
+# From the 'CMD' entry
+CMD ["lua-language-server"]

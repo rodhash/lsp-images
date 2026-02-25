@@ -1,0 +1,51 @@
+# FROM alpine:3.22
+#
+# RUN apk add --no-cache nodejs npm
+#
+# # pin version for reproducibility
+# ARG VERSION=0.15.0
+#
+# RUN npm install -g dockerfile-language-server-nodejs@${VERSION}
+#
+# WORKDIR /workspace
+#
+# CMD ["docker-langserver", "--stdio"]
+
+
+# FROM node:20-bookworm-slim
+#
+# RUN npm install -g dockerfile-language-server-nodejs
+#
+# # Use the absolute path to the binary shim
+# ENTRYPOINT ["/usr/local/bin/docker-langserver"]
+
+# FROM node:20-bookworm-slim
+# RUN npm install -g dockerfile-language-server-nodejs
+# # Use the direct path to the JS file to avoid shim issues
+# ENTRYPOINT ["node", "/usr/local/bin/docker-langserver"]
+
+
+# From https://hub.docker.com/r/lspcontainers/docker-language-server/tags
+# FROM alpine:3.13
+#
+# RUN apk add --no-cache \
+#  nodejs \
+#  npm
+#
+# ARG VERSION=0.15.0
+# RUN npm install -g \
+#  dockerfile-language-server-nodejs@${VERSION}
+#
+# CMD ["/usr/bin/docker-langserver", "--stdio"]
+FROM alpine
+
+RUN apk add --no-cache \
+ nodejs \
+ npm
+
+ARG VERSION=0.15.0
+RUN npm install -g \
+ dockerfile-language-server-nodejs
+
+CMD ["/usr/local/bin/docker-langserver", "--stdio"]
+

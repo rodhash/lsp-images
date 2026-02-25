@@ -1,0 +1,53 @@
+# FROM alpine:3.22
+#
+# RUN apk add --no-cache curl ca-certificates
+#
+# ARG VERSION=2026-02-08
+# ARG TARGETARCH=arm64
+#
+# # https://github.com/artempyanykh/marksman/releases/download/2026-02-08/marksman-linux-arm64
+#
+# RUN curl -L https://github.com/artempyanykh/marksman/releases/download/${VERSION}/marksman-linux-${TARGETARCH} \
+#   -o /usr/local/bin/marksman \
+#   && chmod +x /usr/local/bin/marksman
+#
+# WORKDIR /workspace
+#
+# CMD ["marksman", "server"]
+
+# FROM debian:bookworm-slim
+#
+# RUN apt-get update && apt-get install -y \
+#     curl \
+#     ca-certificates \
+#  && rm -rf /var/lib/apt/lists/*
+#
+# ARG VERSION=2026-02-08
+# ARG TARGETARCH=arm64
+#
+# RUN curl -fL \
+#   https://github.com/artempyanykh/marksman/releases/download/${VERSION}/marksman-linux-${TARGETARCH} \
+#   -o /usr/local/bin/marksman
+#
+# RUN chmod +x /usr/local/bin/marksman
+#
+# ENTRYPOINT ["marksman", "server"]
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    libicu72 \
+ && rm -rf /var/lib/apt/lists/*
+
+ARG VERSION=2026-02-08
+ARG TARGETARCH=arm64
+
+RUN curl -fL \
+  https://github.com/artempyanykh/marksman/releases/download/${VERSION}/marksman-linux-${TARGETARCH} \
+  -o /usr/local/bin/marksman \
+ && chmod +x /usr/local/bin/marksman
+
+ENTRYPOINT ["marksman"]
+

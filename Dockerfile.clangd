@@ -1,0 +1,19 @@
+# Based on alpine 3.22 as per the history metadata
+# FROM alpine:3.22
+FROM alpine
+
+# Version argument for clang-extra-tools
+ARG VERSION=20.1.8
+
+# Metadata label
+LABEL version=${VERSION}
+
+# Install build-base (compiler tools) and clangd (part of extra-tools)
+# Pinned to the versions in your inspect output
+RUN apk add --no-cache \
+    build-base \
+    clang-extra-tools
+
+# clangd usually wants to index your project in the background
+CMD ["clangd", "--background-index"]
+

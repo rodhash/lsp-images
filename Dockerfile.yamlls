@@ -1,0 +1,20 @@
+# Based on 'alpine-minirootfs-3.22.1'
+FROM alpine
+
+# From 'ARG VERSION=1.18.0'
+ARG VERSION=1.20.0
+
+# From 'LABEL version=1.18.0'
+LABEL version=${VERSION}
+
+# Reconstructed from the RUN command
+# Note: Pinning specific alpine package versions can sometimes fail if
+# those versions are moved to community/archive repos.
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    && npm install -g yaml-language-server@${VERSION}
+
+# From 'CMD ["yaml-language-server", "--stdio"]'
+# Using the preferred exec form
+CMD ["yaml-language-server", "--stdio"]
