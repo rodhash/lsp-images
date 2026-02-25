@@ -1,16 +1,23 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:base"],
+  "extends": [
+    "config:recommended"
+  ],
   "nix": {
     "enabled": true
   },
   "dockerfile": {
-    "fileMatch": ["^podman/Dockerfile\\..+$", "^podman/_Dockerfile\\..+$"]
+    "managerFilePatterns": [
+      "/^podman/Dockerfile\\..+$/",
+      "/^podman/_Dockerfile\\..+$/"
+    ]
   },
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^nix/.*\\.nix$"],
+      "managerFilePatterns": [
+        "/^nix/.*\\.nix$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\n.*?\"(?<currentValue>.*?)\""
       ]
@@ -18,7 +25,9 @@
   ],
   "packageRules": [
     {
-      "matchPackageNames": ["*"],
+      "matchPackageNames": [
+        "*"
+      ],
       "groupName": "all dependencies"
     }
   ]
