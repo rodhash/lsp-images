@@ -11,6 +11,7 @@ on:
       - 'nix/**'
       - 'podman/**'
       - '.github/workflows/**'
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -26,11 +27,12 @@ jobs:
       - uses: actions/checkout@v4
       - id: set-matrix
         run: |
-          if [ "${{ github.event.inputs.target }}" == "all" ]; then
+          if [ "${{ github.event.inputs.target }}" == "" ] || [ "${{ github.event.inputs.target }}" == "all" ]; then
+            # Get targets, ignoring files starting with _
             NIX=$(ls nix/build_image_[!_]*.nix 2>/dev/null | sed 's|nix/build_image_||;s|.nix||')
             DOCKER=$(ls podman/Dockerfile.[!_]* 2>/dev/null | sed 's|podman/Dockerfile.||')
-            # Combine, remove fetcher, and format as JSON array
-            LIST=$(echo "$NIX $DOCKER" | tr ' ' '\n' | grep -vE '^fetcher$' | jq -R . | jq -s -c .)
+            # Combine, remove 'fetcher' specifically, and format as JSON array
+            LIST=$(echo "$NIX $DOCKER" | tr ' ' '\n' | grep -vE '^fetcher$' | sort -u | jq -R . | jq -s -c .)
           else
             LIST=$(echo '["${{ github.event.inputs.target }}"]' | jq -c .)
           fi
@@ -46,12 +48,13 @@ jobs:
         lsp: ${{ fromJson(needs.list-targets.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Nix
         uses: cachix/install-nix-action@v25
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Log in to GHCR
+      - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and Push
@@ -61,32 +64,28 @@ jobs:
           T="${{ matrix.lsp }}"
           REGISTRY="ghcr.io/${{ github.repository_owner }}"
 
-          # Decide if we should push based on the event type
+          # Only push on manual dispatch or merge to main, NOT on PRs
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             PUSH_ENABLED=false
-            echo "--- PR detected: Build only mode ---"
           else
             PUSH_ENABLED=true
-            echo "--- Manual/Push detected: Build and Push mode ---"
           fi
 
           if [ -f "nix/build_image_${T}.nix" ]; then
-            # --- NIX PATH ---
+            echo "--- Nix Build: $T ---"
             RESULT_PATH=$(nix-build nix/build_image_${T}.nix --no-out-link)
             LOAD_OUTPUT=$(podman load -i $RESULT_PATH)
             IMAGE_ID=$(echo "$LOAD_OUTPUT" | grep -oE '[a-f0-9]{64}' | head -n 1)
             [ -z "$IMAGE_ID" ] && IMAGE_ID=$(podman images --sort created --format "{{.ID}}" | head -n 1)
 
             podman tag "$IMAGE_ID" "${REGISTRY}/lsp-${T}:latest"
-
             if [ "$PUSH_ENABLED" = true ]; then
               podman push "${REGISTRY}/lsp-${T}:latest"
             fi
 
           elif [ -f "podman/Dockerfile.${T}" ]; then
-            # --- DOCKERFILE PATH ---
+            echo "--- Podman Build: $T ---"
             podman build -t "${REGISTRY}/lsp-${T}:latest" -f podman/Dockerfile.${T} podman/
-
             if [ "$PUSH_ENABLED" = true ]; then
               podman push "${REGISTRY}/lsp-${T}:latest"
             fi
