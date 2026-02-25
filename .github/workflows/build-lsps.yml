@@ -7,45 +7,55 @@ on:
         required: true
         default: 'all'
 
+# This allows the script to push images to your GitHub Packages
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # Fixes the "nixpkgs not found" error
       - name: Install Nix
         uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and Push
         run: |
+          # Use your GitHub username for the registry
           REGISTRY="ghcr.io/${{ github.repository_owner }}"
 
-          # 1. Determine the list of targets
+          # 1. Determine targets
           if [ "${{ github.event.inputs.target }}" == "all" ]; then
-            # Get names from nix files (removing 'build_image_' and '.nix')
             NIX_TARGETS=$(ls nix/build_image_*.nix | sed 's|nix/build_image_||;s|.nix||')
-            # Get names from Dockerfiles (removing 'Dockerfile.' and ignoring underscores)
             DOCKER_TARGETS=$(ls podman/Dockerfile.* | sed 's|podman/Dockerfile.||')
             TARGETS="$NIX_TARGETS $DOCKER_TARGETS"
           else
             TARGETS="${{ github.event.inputs.target }}"
           fi
 
-          # 2. Loop through and build
+          # 2. Loop and build
           for T in $TARGETS; do
             echo "--- Processing: $T ---"
 
             if [ -f "nix/build_image_${T}.nix" ]; then
               nix-build nix/build_image_${T}.nix -o result
               podman load -i result
+              # Standardize name for registry
               podman tag "nix-${T}:latest" "${REGISTRY}/lsp-${T}:latest"
+              podman push "${REGISTRY}/lsp-${T}:latest"
 
             elif [ -f "podman/Dockerfile.${T}" ]; then
-              # Build fetcher once if needed
+              # Build the base fetcher first if it's a Podman build
               podman build -t lsp-fetcher -f podman/_Dockerfile.fetcher podman/
               podman build -t "${REGISTRY}/lsp-${T}:latest" -f podman/Dockerfile.${T} podman/
+              podman push "${REGISTRY}/lsp-${T}:latest"
             fi
-
-            # podman push "${REGISTRY}/lsp-${T}:latest"
           done
-
