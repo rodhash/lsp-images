@@ -1,0 +1,72 @@
+name: LSP Factory Build
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'LSP to build (e.g., gopls, jqls) or "all"'
+        required: true
+        default: 'all'
+
+# This allows the script to push images to your GitHub Packages
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fixes the "nixpkgs not found" error
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and Push
+        env:
+          # This allows Nix to build Terraform and other non-free LSPs
+          NIXPKGS_ALLOW_UNFREE: "1"
+        run: |
+          REGISTRY="ghcr.io/${{ github.repository_owner }}"
+
+          # 1. Gather targets, ignoring files starting with _ and specifically ignoring 'fetcher'
+          if [ "${{ github.event.inputs.target }}" == "all" ]; then
+            NIX_TARGETS=$(ls nix/build_image_[!_]*.nix 2>/dev/null | sed 's|nix/build_image_||;s|.nix||')
+            DOCKER_TARGETS=$(ls podman/Dockerfile.[!_]* 2>/dev/null | sed 's|podman/Dockerfile.||')
+
+            # Combine and filter out 'fetcher'
+            TARGETS=$(echo "$NIX_TARGETS $DOCKER_TARGETS" | tr ' ' '\n' | grep -vE '^fetcher$' | xargs)
+          else
+            TARGETS="${{ github.event.inputs.target }}"
+          fi
+
+          # 2. Loop through and build
+          for T in $TARGETS; do
+            echo "--- Processing: $T ---"
+
+            if [ -f "nix/build_image_${T}.nix" ]; then
+              # Nix Build Path
+              RESULT_PATH=$(nix-build nix/build_image_${T}.nix --no-out-link)
+              LOAD_OUTPUT=$(podman load -i $RESULT_PATH)
+              echo "$LOAD_OUTPUT"
+
+              # Grab the hex ID from the load output
+              IMAGE_ID=$(echo "$LOAD_OUTPUT" | grep -oE '[a-f0-9]{64}' | head -n 1)
+              if [ -z "$IMAGE_ID" ]; then
+                IMAGE_ID=$(podman images --sort created --format "{{.ID}}" | head -n 1)
+              fi
+
+              podman tag "$IMAGE_ID" "${REGISTRY}/lsp-${T}:latest"
+              podman push "${REGISTRY}/lsp-${T}:latest"
+
+            elif [ -f "podman/Dockerfile.${T}" ]; then
+              # Podman Build Path
+              podman build -t "${REGISTRY}/lsp-${T}:latest" -f podman/Dockerfile.${T} podman/
+              podman push "${REGISTRY}/lsp-${T}:latest"
+            fi
+          done

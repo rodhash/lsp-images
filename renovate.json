@@ -7,6 +7,15 @@
   "dockerfile": {
     "fileMatch": ["^podman/Dockerfile\\..+$", "^podman/_Dockerfile\\..+$"]
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^nix/.*\\.nix$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\n.*?\"(?<currentValue>.*?)\""
+      ]
+    }
+  ],
   "packageRules": [
     {
       "matchPackageNames": ["*"],
