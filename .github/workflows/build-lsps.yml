@@ -3,8 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'LSP to build (e.g., gopls, jqls)'
+        description: 'LSP to build (e.g., gopls, jqls) or "all"'
         required: true
+        default: 'all'
 
 jobs:
   build:
@@ -12,36 +13,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup Nix for the nix/ folder builds
       - name: Install Nix
         uses: cachix/install-nix-action@v25
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Build and Push Image
+      - name: Build and Push
         run: |
-          TARGET="${{ github.event.inputs.target }}"
           REGISTRY="ghcr.io/${{ github.repository_owner }}"
 
-          # Logic to find the right file and build tool
-          if [ -f "nix/build_image_${TARGET}.nix" ]; then
-            echo "Building $TARGET via Nix..."
-            nix-build nix/build_image_${TARGET}.nix -o result
-            podman load -i result
-            # Assuming your nix file defines the name as 'nix-$TARGET'
-            podman tag "nix-${TARGET}:latest" "${REGISTRY}/lsp-${TARGET}:latest"
-
-          elif [ -f "podman/Dockerfile.${TARGET}" ]; then
-            echo "Building $TARGET via Podman..."
-            # Build base fetcher first if it's a podman build
-            podman build -t lsp-fetcher -f podman/_Dockerfile.fetcher podman/
-            podman build -t "${REGISTRY}/lsp-${TARGET}:latest" -f podman/Dockerfile.${TARGET} podman/
-
+          # 1. Determine the list of targets
+          if [ "${{ github.event.inputs.target }}" == "all" ]; then
+            # Get names from nix files (removing 'build_image_' and '.nix')
+            NIX_TARGETS=$(ls nix/build_image_*.nix | sed 's|nix/build_image_||;s|.nix||')
+            # Get names from Dockerfiles (removing 'Dockerfile.' and ignoring underscores)
+            DOCKER_TARGETS=$(ls podman/Dockerfile.* | sed 's|podman/Dockerfile.||')
+            TARGETS="$NIX_TARGETS $DOCKER_TARGETS"
           else
-            echo "Error: No build file found for $TARGET"
-            exit 1
+            TARGETS="${{ github.event.inputs.target }}"
           fi
 
-          # Push to GitHub Container Registry (or your preferred registry)
-          # podman push "${REGISTRY}/lsp-${TARGET}:latest"
+          # 2. Loop through and build
+          for T in $TARGETS; do
+            echo "--- Processing: $T ---"
+
+            if [ -f "nix/build_image_${T}.nix" ]; then
+              nix-build nix/build_image_${T}.nix -o result
+              podman load -i result
+              podman tag "nix-${T}:latest" "${REGISTRY}/lsp-${T}:latest"
+
+            elif [ -f "podman/Dockerfile.${T}" ]; then
+              # Build fetcher once if needed
+              podman build -t lsp-fetcher -f podman/_Dockerfile.fetcher podman/
+              podman build -t "${REGISTRY}/lsp-${T}:latest" -f podman/Dockerfile.${T} podman/
+            fi
+
+            # podman push "${REGISTRY}/lsp-${T}:latest"
+          done
 
