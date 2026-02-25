@@ -28,6 +28,9 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and Push
+        env:
+          # This allows Nix to build Terraform and other non-free LSPs
+          NIXPKGS_ALLOW_UNFREE: "1"
         run: |
           REGISTRY="ghcr.io/${{ github.repository_owner }}"
 
@@ -43,19 +46,16 @@ jobs:
             echo "--- Processing: $T ---"
 
             if [ -f "nix/build_image_${T}.nix" ]; then
-              # 1. Build and capture the tarball path
+              # Build and get the path, allowing unfree packages
               RESULT_PATH=$(nix-build nix/build_image_${T}.nix --no-out-link)
 
-              # 2. Load it and capture the output to find the Image ID
               LOAD_OUTPUT=$(podman load -i $RESULT_PATH)
               echo "$LOAD_OUTPUT"
 
-              # 3. Extract the Image ID (the long hex string)
-              # This works even if the name inside Nix is different from the filename
+              # Grab the hex ID from the load output
               IMAGE_ID=$(echo "$LOAD_OUTPUT" | grep -oE '[a-f0-9]{64}' | head -n 1)
 
               if [ -z "$IMAGE_ID" ]; then
-                # Fallback: try to get the most recently created image if grep fails
                 IMAGE_ID=$(podman images --sort created --format "{{.ID}}" | head -n 1)
               fi
 
@@ -63,9 +63,9 @@ jobs:
               podman push "${REGISTRY}/lsp-${T}:latest"
 
             elif [ -f "podman/Dockerfile.${T}" ]; then
+              # Ensure fetcher is built for standard Podman builds
               podman build -t lsp-fetcher -f podman/_Dockerfile.fetcher podman/
               podman build -t "${REGISTRY}/lsp-${T}:latest" -f podman/Dockerfile.${T} podman/
               podman push "${REGISTRY}/lsp-${T}:latest"
             fi
           done
-
