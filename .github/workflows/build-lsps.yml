@@ -24,7 +24,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: set-matrix
         run: |
           if [ "${{ github.event.inputs.target }}" == "" ] || [ "${{ github.event.inputs.target }}" == "all" ]; then
@@ -47,7 +47,7 @@ jobs:
       matrix:
         lsp: ${{ fromJson(needs.list-targets.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
